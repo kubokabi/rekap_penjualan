@@ -3,7 +3,7 @@
         <nav class="pull-left">
             <ul class="nav">
                 <li class="nav-item">
-                    Aplikasi Rekap Penjualan
+                    Aplikasi Rekap Penjualan V1.0.0
                 </li>
 
             </ul>
