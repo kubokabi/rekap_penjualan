@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ asset('templateLogin/images/icons/favicon.ico') }}" />
+    <link rel="icon" href="{{ asset('assets/img/kaiadmin/favicon.ico') }}" type="image/x-icon" />
 
     <!-- CSS -->
     <link rel="stylesheet" type="text/css" href="{{ asset('templateLogin/vendor/bootstrap/css/bootstrap.min.css') }}">
