@@ -57,13 +57,14 @@
                     </a>
                 </li>
 
-                <!-- Stok Otomatis -->
-                <li class="nav-item {{ request()->is('stok-otomatis') ? 'active' : '' }}">
-                    <a href="{{ url('stok-otomatis') }}">
-                        <i class="fas fa-boxes"></i>
-                        <p>Stok Otomatis</p>
-                    </a>
-                </li>
+                @if (session('email') === 'admin@gmail.com')
+                    <li class="nav-item {{ request()->is('akun-pengguna') ? 'active' : '' }}">
+                        <a href="{{ url('akun-pengguna') }}">
+                            <i class="fas fa-users"></i>
+                            <p>Akun Pengguna</p>
+                        </a>
+                    </li>
+                @endif
 
             </ul>
         </div>

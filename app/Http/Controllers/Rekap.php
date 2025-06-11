@@ -10,27 +10,33 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class Rekap extends Controller
 {
     public function index()
     {
-        $userCount    = User::count();
-        $productCount = DataMasterModel::count();
+        $id_users = session('id_users');
 
-        $totalOmset = DataMasterModel::with('penjualan')->get()
+        $userCount    = User::count();
+        $productCount = DataMasterModel::where('id_users', $id_users)->count();
+
+        $totalOmset = DataMasterModel::with('penjualan')
+            ->where('id_users', $id_users)
+            ->get()
             ->sum(
                 fn($m) =>
                 (int)($m->penjualan->pluck('isi_kolom', 'nama_kolom')['Harga'] ?? 0) *
                     (int)($m->penjualan->pluck('isi_kolom', 'nama_kolom')['Terjual'] ?? 0)
             );
 
-        /* --------- DATA GRAFIK BULANAN --------- */
         $year   = now()->year;
         $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         $values = array_fill(0, 12, 0);
 
         DataMasterModel::with('penjualan')
+            ->where('id_users', $id_users)
             ->whereYear('created_at', $year)
             ->get()
             ->each(function ($m) use (&$values) {
@@ -45,11 +51,12 @@ class Rekap extends Controller
             'userCount'    => $this->short($userCount),
             'productCount' => $this->short($productCount),
             'totalOmset'   => $this->short($totalOmset),
-            'yearlyOmzet' => $yearlyOmzet,
-            'chartLabels' => $labels,
-            'chartValues' => $values,
+            'yearlyOmzet'  => $yearlyOmzet,
+            'chartLabels'  => $labels,
+            'chartValues'  => $values,
         ]);
     }
+
 
     /** format 12 500 → 12.5K, 1 300 000 → 1.3M */
     private function short($num, $precision = 1)
@@ -72,7 +79,7 @@ class Rekap extends Controller
     public function dataMaster()
     {
         $data_master = DataMasterModel::with('penjualan')
-            ->orderByDesc('created_at')
+            ->orderByDesc('created_at')->where('id_users', session('id_users'))
             ->get();
 
         return view('DataMaster.index', compact('data_master'));
@@ -116,7 +123,8 @@ class Rekap extends Controller
 
         // 1. Simpan ke data_master
         $master = DataMasterModel::create([
-            'platform' => $request->platform ?? '-'
+            'platform' => $request->platform ?? '-',
+            'id_users' => session('id_users'),
         ]);
 
         // 2. Simpan ke penjualan (SKU, Nama Produk, dst)
@@ -178,7 +186,8 @@ class Rekap extends Controller
         // Lewati header (baris 1)
         foreach (array_slice($data, 1) as $row) {
             $master = DataMasterModel::create([
-                'platform' => $request->platform ?? '-'
+                'platform' => $request->platform ?? '-',
+                'id_users' => session('id_users')
             ]);
             $i = 'A';
             foreach ($columns as $col) {
@@ -269,7 +278,7 @@ class Rekap extends Controller
     public function rekapAuto()
     {
         $data_master = DataMasterModel::with('penjualan')
-            ->orderByDesc('created_at')
+            ->orderByDesc('created_at')->where('id_users', session('id_users'))
             ->get();
 
         return view('RekapOtomatis.index', compact('data_master'));
@@ -277,7 +286,7 @@ class Rekap extends Controller
 
     public function dataRekap(Request $request)
     {
-        $query = DataMasterModel::with('penjualan');
+        $query = DataMasterModel::with('penjualan')->where('id_users', session('id_users'));
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             // dua tanggal → BETWEEN (inklusif)
@@ -297,7 +306,7 @@ class Rekap extends Controller
 
     public function export(Request $request)
     {
-        $query = DataMasterModel::with('penjualan');
+        $query = DataMasterModel::with('penjualan')->where('id_users', session('id_users'));
         $periodText = '';
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
@@ -402,4 +411,83 @@ class Rekap extends Controller
     }
 
     ##### End
+
+    #### Akun Pengguna
+    // Tampilkan halaman CRUD akun pengguna
+    public function akunPengguna()
+    {
+        if (session('email') !== 'admin@gmail.com') {
+            abort(403, 'Akses hanya untuk admin.');
+        }
+
+        $users = User::all();
+        return view('AkunPengguna.index', compact('users'));
+    }
+
+    // Simpan akun baru
+    public function storeAkun(Request $request)
+    {
+        if (session('email') !== 'admin@gmail.com') {
+            abort(403, 'Akses hanya untuk admin.');
+        }
+        $request->validate([
+            'name' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+        ]);
+
+        User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        return redirect()->route('akun.index')->with('success', 'Akun berhasil ditambahkan.');
+    }
+
+    // Update akun
+    public function updateAkun(Request $request, $id)
+    {
+        if (session('email') !== 'admin@gmail.com') {
+            abort(403, 'Akses hanya untuk admin.');
+        }
+        $user = User::findOrFail($id);
+
+        $rules = [
+            'name' => 'required',
+            'email' => 'required|email|unique:users,email,' . $id,
+        ];
+
+        if ($request->filled('password')) {
+            $rules['password'] = 'min:6';
+        }
+
+        $request->validate($rules);
+
+        $user->name = $request->name;
+        $user->email = $request->email;
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+        }
+        $user->save();
+
+        return redirect()->route('akun.index')->with('success', 'Akun berhasil diperbarui.');
+    }
+
+    // Hapus akun dengan validasi minimal 1 tersisa
+    public function deleteAkun($id)
+    {
+        if (session('email') !== 'admin@gmail.com') {
+            abort(403, 'Akses hanya untuk admin.');
+        }
+        $totalUser = User::count();
+        if ($totalUser <= 1) {
+            return redirect()->route('akun.index')->with('error', 'Minimal harus ada satu akun.');
+        }
+
+        User::destroy($id);
+
+        return redirect()->route('akun.index')->with('success', 'Akun berhasil dihapus.');
+    }
+    #### End
 }

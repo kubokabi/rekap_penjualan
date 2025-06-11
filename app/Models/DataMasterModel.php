@@ -14,6 +14,7 @@ class DataMasterModel extends Model
 
     protected $fillable = [
         'platform',
+        'id_users',
     ];
 
     protected $casts = [
