@@ -38,7 +38,7 @@
                     <span class="sidebar-mini-icon">
                         <i class="fa fa-ellipsis-h"></i>
                     </span>
-                    <h4 class="text-section">Menu</h4>
+                    <h4 class="text-section">MASTER</h4>
                 </li>
 
                 <!-- Master Produk -->
