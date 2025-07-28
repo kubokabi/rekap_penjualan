@@ -33,7 +33,7 @@
                 <form class="login100-form validate-form" method="POST" action="{{ route('login') }}">
                     @csrf
                     <span class="login100-form-title p-b-43">
-                        Login to continue
+                        Login to admin
                     </span>
                     @if ($errors->any())
                         <div class="alert alert-danger" style="margin-bottom: 20px;">
